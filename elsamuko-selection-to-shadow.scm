@@ -73,6 +73,10 @@
     ; move shadow
     (gimp-drawable-offset shadowLayer FALSE OFFSET-TRANSPARENT 20 20)
     (plug-in-gauss RUN-NONINTERACTIVE img shadowLayer 10 10 1)
+
+    ; link selection and shadow
+    (gimp-item-set-linked addedLayer TRUE)
+    (gimp-item-set-linked shadowLayer TRUE)
           
     ; tidy up
     (gimp-image-undo-group-end img)
