@@ -51,7 +51,7 @@
     ;init
     (gimp-context-push)
     (gimp-image-undo-group-start img)
-    (gimp-context-set-interpolation INTERPOLATION-LOHALO)
+    (gimp-context-set-interpolation INTERPOLATION-LINEAR)
           
     ; add shadow layer as new layer
     (gimp-image-insert-layer img shadowGroup 0 0)
