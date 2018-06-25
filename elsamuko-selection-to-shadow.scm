@@ -44,7 +44,7 @@
                                            oheight
                                            RGBA-IMAGE
                                            "Shadow"
-                                           50
+                                           100
                                            LAYER-MODE-NORMAL)))
          )
     
