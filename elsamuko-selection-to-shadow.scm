@@ -26,50 +26,81 @@
   (let* (
          (owidth (car (gimp-image-width img)))
          (oheight (car (gimp-image-height img)))
-         (newWidth (+ 40 (* owidth 2)))
-         (newHeight (+ 40 (* oheight 2)))
-         (layerCount (car (gimp-image-get-layers img)))
-         (layerList (cadr (gimp-image-get-layers img)))
-         (lowestLayer (aref layerList (- layerCount 1)))
+         ; selection
+         (bounds (gimp-selection-bounds img))
+         (boundsX (cadr bounds))
+         (boundsY (caddr bounds))
+         (boundsW (- (cadr (cddr bounds)) boundsX))
+         (boundsH (- (caddr (cddr bounds)) boundsY))
+         ; with 15px for shadow
+         (boundsWPlus (+ 15 boundsW))
+         (boundsHPlus (+ 15 boundsH))
+         ; after resize
+         (newWidth (+ 40 (* boundsW 2)))
+         (newHeight (+ 40 (* boundsH 2)))
+         ; layers
+         (layerObj (gimp-image-get-layers img))
+         (layerCount (car layerObj))
+         (layerVector (cadr layerObj))
+         (layerList (vector->list layerVector))
+         (lowestLayer (aref layerVector (- layerCount 1)))
          (shadowGroup (car (gimp-layer-group-new img)))
          (addedLayer (car (gimp-layer-new img
-                                          owidth
-                                          oheight
+                                          boundsWPlus
+                                          boundsHPlus
                                           RGBA-IMAGE
                                           "Selection"
                                           100
                                           LAYER-MODE-NORMAL)))
          (shadowLayer (car (gimp-layer-new img
-                                           owidth
-                                           oheight
+                                           boundsWPlus
+                                           boundsHPlus
                                            RGBA-IMAGE
                                            "Shadow"
                                            100
                                            LAYER-MODE-NORMAL)))
          )
     
-    ;init
+    ; init
     (gimp-context-push)
     (gimp-image-undo-group-start img)
     (gimp-context-set-interpolation INTERPOLATION-LINEAR)
-          
+
+    ; unlink 1st and 2nd level layers
+    (map (lambda (current) (begin
+                             (if (= (car (gimp-item-is-group current)) TRUE)
+                                 (begin
+                                   (let* (
+                                          (groupObj (gimp-item-get-children current))
+                                          (groupVector (cadr groupObj))
+                                          (groupList (vector->list groupVector))
+                                          )
+                                     (map (lambda (current) (gimp-item-set-linked current FALSE)) groupList)
+                                     )
+                                   )
+                                 (gimp-item-set-linked current FALSE)
+                                 )
+                             )) layerList)
+
     ; add shadow layer as new layer
     (gimp-image-insert-layer img shadowGroup 0 0)
     (gimp-item-set-name shadowGroup "Selection + Shadow")
     (gimp-image-insert-layer img shadowLayer shadowGroup 0)
-          
+    (gimp-layer-set-offsets shadowLayer boundsX boundsY)
+
     ; fill shadow with black
     (gimp-context-set-foreground '(0 0 0))
     (gimp-edit-bucket-fill shadowLayer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
 
-    ;add selection from lowest layer as new layer to shadow group
+    ; add selection from lowest layer as new layer to shadow group
     (gimp-image-insert-layer img addedLayer shadowGroup 0)
+    (gimp-layer-set-offsets addedLayer boundsX boundsY)
     (gimp-edit-copy lowestLayer)
     (gimp-floating-sel-anchor (car (gimp-edit-paste addedLayer FALSE)))
-          
+
     ; scale 200% + 40px
     (gimp-layer-scale shadowGroup newWidth newHeight TRUE)
-          
+
     ; move shadow
     (gimp-drawable-offset shadowLayer FALSE OFFSET-TRANSPARENT 20 20)
     (plug-in-gauss RUN-NONINTERACTIVE img shadowLayer 10 10 1)
